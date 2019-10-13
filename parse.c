@@ -1,51 +1,13 @@
-#include <ctype.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-// トークンの種類
-typedef enum {
-    TK_RESERVED,
-    TK_NUM,
-    TK_EOF,
-} TokenKind;
-
-typedef struct Token Token;
-
-// トークン型
-struct Token {
-    TokenKind kind;
-    Token *next;
-    int val;
-    char *str;
-    int len;
-};
+#include "9cc.h"
 
 // 現在着目しているToken
 Token *token;
 
-typedef enum {
-    ND_ADD,
-    ND_SUB,
-    ND_MUL,
-    ND_DIV,
-    ND_EQ,
-    ND_NE,
-    ND_LT,
-    ND_LE,
-    ND_NUM,
-} NodeKind;
-
-typedef struct Node Node;
-
-struct Node {
-    NodeKind kind;
-    Node *lhs;
-    Node *rhs;
-    int val;
-};
+Node *parse(char *user_input) {
+    // トークナイズする
+    token = tokenize(user_input);
+    Node *node = expr();
+}
 
 void error(char *fmt, ...) {
     va_list ap;
@@ -54,8 +16,6 @@ void error(char *fmt, ...) {
     fprintf(stderr, "\n");
     exit(1);
 }
-
-char *user_input;
 
 void error_at(char *loc, char *fmt, ...) {
     va_list ap;
@@ -165,12 +125,7 @@ Node *new_node_num(int val) {
     return node;
 }
 
-Node *mul();
-Node *primary();
-Node *unary();
-Node *add();
-Node *relational();
-Node *equality();
+
 
 Node *expr() {
     return equality();
@@ -249,81 +204,4 @@ Node *unary() {
     if (consume("-"))
         return new_node(ND_SUB, new_node_num(0), primary());
     return primary();
-}
-
-
-void gen(Node *node) {
-    if (node->kind == ND_NUM) {
-        printf("  push %d\n", node->val);
-        return;
-    }
-
-    gen(node->lhs);
-    gen(node->rhs);
-
-    printf("  pop rdi\n");
-    printf("  pop rax\n");
-
-    switch (node->kind) {
-        case ND_ADD:
-            printf("  add rax, rdi\n");
-            break;
-        case ND_SUB:
-            printf("  sub rax, rdi\n");
-            break;
-        case ND_MUL:
-            printf("  imul rax, rdi\n");
-            break;
-        case ND_EQ:
-            printf("  cmp rax, rdi\n");
-            printf("  sete al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_NE:
-            printf("  cmp rax, rdi\n");
-            printf("  setne al\n");
-            printf("  movzb rax, al\n");
-            break;
-        case ND_LT:
-            printf("  cmp rax, rdi\n");
-            printf("  setl al\n");
-            printf("  movzb rax, al\n");
-            break;
-         case ND_LE:
-            printf("  cmp rax, rdi\n");
-            printf("  setle al\n");
-            printf("  movzb rax, al\n");
-            break;
-       case ND_DIV:
-            printf("  cqo\n");
-            printf("  idiv rdi\n");
-            break;
-
-    }
-
-    printf("  push rax\n");
-}
-
-int main(int argc, char **argv) {
-    if (argc != 2) {
-        error("引数の個数が正しくありません");
-        return 1;
-    }
-
-    user_input = argv[1];
-
-    // トークナイズする
-    token = tokenize(user_input);
-    Node *node = expr();
-
-    // アセンブリの前半部分を出力
-    printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
-    printf("main:\n");
-
-    gen(node);
-
-    printf("  pop rax\n");
-    printf("  ret\n");
-    return 0;
 }
