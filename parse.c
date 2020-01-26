@@ -7,6 +7,8 @@ Node *parse(char *user_input) {
     // トークナイズする
     token = tokenize(user_input);
     Node *node = expr();
+    program();
+    return node;
 }
 
 void error(char *fmt, ...) {
@@ -37,6 +39,15 @@ bool consume(char *op) {
         return false;
     token = token->next;
     return true;
+}
+
+Token *consume_ident(void) {
+    if (token->kind != TK_IDENT)
+        return NULL;
+
+    Token *t = token;
+    token = token->next;
+    return t;
 }
 
 void expect(char *op) {
@@ -103,6 +114,17 @@ Token *tokenize(char *p) {
             continue;
         }
 
+        if ('a' <= *p && *p <= 'z') {
+            cur = new_token(TK_IDENT, cur, p++, 1);
+            cur->len = 1;
+            continue;
+        }
+
+        if (ispunct(*p)) {
+            cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
         error("トークナイズできません");
     }
 
@@ -125,10 +147,15 @@ Node *new_node_num(int val) {
     return node;
 }
 
-
+Node *assign() {
+    Node *node = equality();
+    if (consume("="))
+        node = new_node(ND_ASSIGN, node, assign());
+    return node;
+}
 
 Node *expr() {
-    return equality();
+    return assign();
 }
 
 Node *equality() {
@@ -195,6 +222,14 @@ Node *primary() {
         return node;
     }
 
+    Token *tok = consume_ident();
+    if (tok) {
+        Node *node = calloc(1, sizeof(Node));
+        node->kind = ND_LVAR;
+        node->offset = (tok->str[0] - 'a' + 1) * 8;
+        return node;
+    }
+
     return new_node_num(expect_number());
 }
 
@@ -204,4 +239,17 @@ Node *unary() {
     if (consume("-"))
         return new_node(ND_SUB, new_node_num(0), primary());
     return primary();
+}
+
+Node *stmt() {
+    Node *node = expr();
+    expect(";");
+    return node;
+}
+
+void program() {
+    int i = 0;
+    while(!at_eof())
+        code[i++] = stmt();
+    code[i] = NULL;
 }
