@@ -55,6 +55,7 @@ try 1 '10 <= 11;'
 try 0 '8 >= 15;'
 try 1 '10 >= 10;'
 try 1 '14 >= 4;'
-try 3 'a=1; a+2;'
+try 3 'a=1;a+2;'
+try 3 'foo=1;foo+2;'
 
 echo OK
