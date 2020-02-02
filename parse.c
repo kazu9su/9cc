@@ -3,14 +3,6 @@
 // 現在着目しているToken
 Token *token;
 
-Node *parse(char *user_input) {
-    // トークナイズする
-    token = tokenize(user_input);
-    Node *node = expr();
-    program();
-    return node;
-}
-
 void error(char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);

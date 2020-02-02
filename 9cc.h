@@ -73,9 +73,7 @@ Node *assign();
 char *user_input;
 
 void gen(Node *node);
-void codegen(Node *node);
 void program();
-Node *parse(char *user_input);
 
 Node *code[100];
 extern Token *token;
