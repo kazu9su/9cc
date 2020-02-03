@@ -52,15 +52,12 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-// 新しいTokenを作成して*curに繋げる
-Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
-    Token *tok = calloc(1, sizeof(Token));
-    tok->kind = kind;
-    tok->str = str;
-    tok->len = len;
-    cur->next = tok;
-
-    return tok;
+Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
+    Node *node = calloc(1, sizeof(Node));
+    node->kind = kind;
+    node->lhs = lhs;
+    node->rhs = rhs;
+    return node;
 }
 
 Node *new_node_num(int val) {
@@ -185,8 +182,20 @@ Node *unary() {
 }
 
 Node *stmt() {
-    Node *node = expr();
-    expect(";");
+    Node *node;
+
+    if (consume("return")) {
+        node = calloc(1, sizeof(Node));
+        node->kind = ND_RETURN;
+        node->lhs = expr();
+    } else {
+        node = expr();
+    }
+
+    if (!consume(";")) {
+        error_at(token->str, "';'ではないトークンです");
+    }
+
     return node;
 }
 

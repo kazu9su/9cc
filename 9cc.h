@@ -17,6 +17,7 @@ typedef enum {
     ND_LE, // <
     ND_LVAR, // ローカル変数
     ND_NUM, // 整数
+    ND_RETURN, // return
 } NodeKind;
 
 typedef struct Node Node;
@@ -66,7 +67,6 @@ Token *consume_ident(void);
 void expect(char *op);
 int expect_number();
 bool at_eof();
-Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 bool startswith(char *p, char *q);
 Token *tokenize(char *p);
 Node *new_node(NodeKind kind, Node *lhs, Node *rhs);

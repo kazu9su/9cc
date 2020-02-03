@@ -4,6 +4,7 @@ void error(char *fmt, ...);
 bool is_alpha(char c);
 bool is_alnum(char c);
 bool startswith(char *p, char *q);
+Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 
 Token *tokenize(char *p) {
     Token head;
@@ -11,6 +12,12 @@ Token *tokenize(char *p) {
     Token *cur = &head;
 
     while (*p) {
+        if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
+            cur = new_token(TK_RESERVED, cur, p, 6);
+            p += 6;
+            continue;
+        }
+
         if (isspace(*p)) {
             p++;
             continue;
@@ -56,12 +63,15 @@ Token *tokenize(char *p) {
     return head.next;
 }
 
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs) {
-    Node *node = calloc(1, sizeof(Node));
-    node->kind = kind;
-    node->lhs = lhs;
-    node->rhs = rhs;
-    return node;
+// 新しいTokenを作成して*curに繋げる
+Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
+    Token *tok = calloc(1, sizeof(Token));
+    tok->kind = kind;
+    tok->str = str;
+    tok->len = len;
+    cur->next = tok;
+
+    return tok;
 }
 
 bool is_alpha(char c) {
