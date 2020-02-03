@@ -1,12 +1,28 @@
 #include "9cc.h"
 
-void gen_lval(Node *node) {
-    if (node->kind != ND_LVAR)
-        error("代入の左辺値が変数ではありません");
+static int labelseq = 1;
 
-    printf("  mov rax, rbp\n");
-    printf("  sub rax, %d\n", node->offset);
+void gen_lval(Node *node) {
+    if (node->kind == ND_LVAR) {
+        printf("  lea rax, [rbp-%d]\n", node->lvar->offset);
+        printf("  push rax\n");
+        return;
+    }
+
+    error("代入の左辺値が変数ではありません");
+}
+
+void load() {
+    printf("  pop rax\n");
+    printf("  mov rax, [rax]\n");
     printf("  push rax\n");
+}
+
+void store() {
+    printf("  pop rdi\n");
+    printf("  pop rax\n");
+    printf("  mov [rax], rdi\n");
+    printf("  push rdi\n");
 }
 
 void gen(Node *node) {
@@ -14,28 +30,48 @@ void gen(Node *node) {
         case ND_NUM:
             printf("  push %d\n", node->val);
             return;
+        case ND_EXPR_STMT:
+            gen(node->lhs);
+            printf("  add rsp, 8\n");
+            return;
         case ND_LVAR:
             gen_lval(node);
-            printf("  pop rax\n");
-            printf("  mov rax, [rax]\n");
-            printf("  push rax\n");
+            load();
             return;
         case ND_ASSIGN:
             gen_lval(node->lhs);
             gen(node->rhs);
-
-            printf("  pop rdi\n");
-            printf("  pop rax\n");
-            printf("  mov [rax], rdi\n");
-            printf("  push rdi\n");
+            store();
             return;
         case ND_RETURN:
             gen(node->lhs);
             printf("  pop rax\n");
-            printf("  mov rsp, rbp\n");
-            printf("  pop rbp\n");
-            printf("  ret\n");
+            printf("  jmp .L.return\n");
             return;
+        case ND_IF: {
+            int seq = labelseq++;
+
+            if (node->els) {
+                gen(node->cond);
+                printf("  pop rax\n");
+                printf("  cmp rax, 0\n");
+                printf("  je .L.else.%d\n", seq);
+                gen(node->then);
+                printf("  jmp .L.end.%d\n", seq);
+                printf(".L.else.%d:\n", seq);
+                gen(node->els);
+                printf(".L.end.%d:\n", seq);
+            } else {
+                gen(node->cond);
+                printf("  pop rax\n");
+                printf("  cmp rax, 0\n");
+                printf("  je .L.end.%d\n", seq);
+                gen(node->then);
+                printf(".L.end.%d:\n", seq);
+            }
+
+            return;
+        }
     }
 
     gen(node->lhs);
@@ -82,4 +118,27 @@ void gen(Node *node) {
     }
 
     printf("  push rax\n");
+}
+
+void codegen(Function *prog) {
+    // アセンブリの前半部分を出力
+    printf(".intel_syntax noprefix\n");
+    printf(".global main\n");
+    printf("main:\n");
+
+    // プロローグ
+    printf("  push rbp\n");
+    printf("  mov rbp, rsp\n");
+    printf("  sub rsp, %d\n", prog->stack_size);
+
+    // 先頭の式から順にコード生成
+    for (Node *node = prog->node; node; node = node->next)
+        gen(node);
+
+    // エピローグ
+    // 最後の式の結果がRAXに残っているのでそれが返り値になる
+    printf(".L.return:\n");
+    printf("  mov rsp, rbp\n");
+    printf("  pop rbp\n");
+    printf("  ret\n");
 }

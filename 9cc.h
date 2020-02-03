@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -18,16 +19,34 @@ typedef enum {
     ND_LVAR, // ローカル変数
     ND_NUM, // 整数
     ND_RETURN, // return
+    ND_IF, // if
+    ND_EXPR_STMT, // Expression statement
 } NodeKind;
+
+// ローカル変数の型
+typedef struct LVar LVar;
+
+struct LVar {
+    LVar *next; // 次の変数かNULL
+    char *name; // 変数の名前
+    int offset; // RBPからのオフセット
+};
 
 typedef struct Node Node;
 
 struct Node {
     NodeKind kind;
+    Node *next;
     Node *lhs; // 左辺
     Node *rhs; // 右辺
+
+    // if statement
+    Node *cond;
+    Node *then;
+    Node *els;
+
+    LVar *lvar;
     int val; // kindがND_NUMの場合のみ使う
-    int offset; // kindがND_LVARの場合のみ使う
 };
 
 // トークンの種類
@@ -49,16 +68,6 @@ struct Token {
     int len;
 };
 
-typedef struct LVar LVar;
-
-// ローカル変数の型
-struct LVar {
-    LVar *next; // 次の変数かNULL
-    char *name; // 変数の名前
-    int len; // 名前の長さ
-    int offset; // RBPからのオフセット
-};
-
 void error(char *fmt, ...);
 char *user_input;
 void error_at(char *loc, char *fmt, ...);
@@ -69,8 +78,6 @@ int expect_number();
 bool at_eof();
 bool startswith(char *p, char *q);
 Token *tokenize(char *p);
-Node *new_node(NodeKind kind, Node *lhs, Node *rhs);
-Node *new_node_num(int val);
 Node *expr();
 Node *mul();
 Node *primary();
@@ -83,9 +90,19 @@ Node *assign();
 char *user_input;
 
 void gen(Node *node);
-void program();
 
 LVar *find_lvar(Token *tok);
 
 Node *code[100];
 extern Token *token;
+
+typedef struct Function Function;
+struct Function {
+    Node *node;
+    LVar *locals;
+    int stack_size;
+};
+
+Function *program(void);
+
+void codegen(Function *prog);

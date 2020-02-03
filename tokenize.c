@@ -4,6 +4,7 @@ void error(char *fmt, ...);
 bool is_alpha(char c);
 bool is_alnum(char c);
 bool startswith(char *p, char *q);
+char *starts_with_reserved(char *p);
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
 
 Token *tokenize(char *p) {
@@ -12,34 +13,17 @@ Token *tokenize(char *p) {
     Token *cur = &head;
 
     while (*p) {
-        if (strncmp(p, "return", 6) == 0 && !is_alnum(p[6])) {
-            cur = new_token(TK_RESERVED, cur, p, 6);
-            p += 6;
-            continue;
-        }
-
         if (isspace(*p)) {
             p++;
             continue;
         }
 
-        if (startswith(p, "==") || startswith(p, "!=") ||
-            startswith(p, "<=") || startswith(p, ">=")) {
-            cur = new_token(TK_RESERVED, cur, p, 2);
-            p += 2;
-            continue;
-        }
-
-        if (strchr("+-*/()<>", *p)) {
-            cur = new_token(TK_RESERVED, cur, p++, 1);
-            continue;
-        }
-
-        if (isdigit(*p)) {
-            cur = new_token(TK_NUM, cur, p, 0);
-            char *q = p;
-            cur->val = strtol(p, &p, 10);
-            cur->len = p - q;
+        // Keyword or multi-letter punctuators
+        char *kw = starts_with_reserved(p);
+        if (kw) {
+            int len = strlen(kw);
+            cur = new_token(TK_RESERVED, cur, p, len);
+            p += len;
             continue;
         }
 
@@ -53,6 +37,14 @@ Token *tokenize(char *p) {
 
         if (ispunct(*p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
+            continue;
+        }
+
+        if (isdigit(*p)) {
+            cur = new_token(TK_NUM, cur, p, 0);
+            char *q = p;
+            cur->val = strtol(p, &p, 10);
+            cur->len = p - q;
             continue;
         }
 
@@ -92,4 +84,24 @@ void error(char *fmt, ...) {
 
 bool startswith(char *p, char *q) {
     return memcmp(p, q, strlen(q)) == 0;
+}
+
+char *starts_with_reserved(char *p) {
+    // Keyword
+    char *kw[] = { "return", "if", "else" };
+
+    for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
+        int len = strlen(kw[i]);
+        if (startswith(p, kw[i]) && !is_alnum(p[len]))
+            return kw[i];
+    }
+
+    char *ops[] = { "==", "!=", "<=", ">=" };
+
+    for (int i = 0; i < sizeof(ops) / sizeof(*ops); i++) {
+        if (startswith(p, ops[i]))
+                return ops[i];
+    }
+
+    return NULL;
 }
