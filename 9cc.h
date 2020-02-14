@@ -22,6 +22,7 @@ typedef enum {
     ND_IF, // if
     ND_EXPR_STMT, // Expression statement
     ND_WHILE, // while
+    ND_FOR, // for
 } NodeKind;
 
 // ローカル変数の型
@@ -41,10 +42,12 @@ struct Node {
     Node *lhs; // 左辺
     Node *rhs; // 右辺
 
-    // if or while statement
+    // if or while or for statement
     Node *cond;
     Node *then;
     Node *els;
+    Node *init;
+    Node *inc;
 
     LVar *lvar;
     int val; // kindがND_NUMの場合のみ使う
