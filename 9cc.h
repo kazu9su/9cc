@@ -23,6 +23,7 @@ typedef enum {
     ND_EXPR_STMT, // Expression statement
     ND_WHILE, // while
     ND_FOR, // for
+    ND_BLOCK, // block
 } NodeKind;
 
 // ローカル変数の型
@@ -48,6 +49,9 @@ struct Node {
     Node *els;
     Node *init;
     Node *inc;
+
+    // Block
+    Node *body;
 
     LVar *lvar;
     int val; // kindがND_NUMの場合のみ使う

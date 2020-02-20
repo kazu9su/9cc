@@ -3,6 +3,7 @@
 void error(char *fmt, ...);
 bool is_alpha(char c);
 bool is_alnum(char c);
+bool is_block(char c);
 bool startswith(char *p, char *q);
 char *starts_with_reserved(char *p);
 Token *new_token(TokenKind kind, Token *cur, char *str, int len);
@@ -35,7 +36,7 @@ Token *tokenize(char *p) {
             continue;
         }
 
-        if (ispunct(*p)) {
+        if (ispunct(*p) || is_block(*p)) {
             cur = new_token(TK_RESERVED, cur, p++, 1);
             continue;
         }
@@ -64,6 +65,10 @@ Token *new_token(TokenKind kind, Token *cur, char *str, int len) {
     cur->next = tok;
 
     return tok;
+}
+
+bool is_block(char c) {
+    return c == '{' || c == '}';
 }
 
 bool is_alpha(char c) {
