@@ -24,6 +24,7 @@ typedef enum {
     ND_WHILE, // while
     ND_FOR, // for
     ND_BLOCK, // block
+    ND_FUNCALL, // Function call
 } NodeKind;
 
 // ローカル変数の型
@@ -52,6 +53,10 @@ struct Node {
 
     // Block
     Node *body;
+
+    // Function call
+    char *funcname;
+    Node *args;
 
     LVar *lvar;
     int val; // kindがND_NUMの場合のみ使う
