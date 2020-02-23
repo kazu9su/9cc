@@ -1,7 +1,6 @@
 #! /bin/sh
 
 cat <<EOF | gcc -xc -c -o tmp2.o -
-int ret3() { return 3; }
 int ret5() { return 5; }
 int add(int x, int y) { return x+y; }
 int sub(int x, int y) { return x-y; }
@@ -69,10 +68,10 @@ try 55 'main() { i=0; j=0; for (i=0; i<=10; i=i+1) j=i+j; return j; }'
 try 3 'main() { for (;;) return 3; return 5; }'
 try 3 'main() { {1; {2;} return 3;} }'
 try 55 'main() { i=0; j=0; while(i<=10) {j=i+j; i=i+1;} return j; }'
-try 3 'main() { return ret3(); }'
 try 5 'main() { return ret5(); }'
 try 8 'main() { return add(3, 5); }'
 try 2 'main() { return sub(5, 3); }'
 try 21 'main() { return add6(1,2,3,4,5,6); }'
+try 3 'ret3() { return 3; } main() { return ret3(); }'
 
 echo OK
