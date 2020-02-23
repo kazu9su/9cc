@@ -11,13 +11,15 @@ int main(int argc, char **argv) {
     token = tokenize(user_input);
     Function *prog = program();
 
-    int offset = 0;
-    for (LVar *lvar = prog->locals; lvar; lvar = lvar->next) {
-        offset += 8;
-        lvar->offset = offset;
-    }
+    for (Function *fn = prog; fn; fn = fn->next) {
+        int offset = 0;
+        for (LVar *lvar = fn->locals; lvar; lvar = lvar->next) {
+            offset += 8;
+            lvar->offset = offset;
+        }
 
-    prog->stack_size = offset;
+        fn->stack_size = offset;
+    }
 
     codegen(prog);
 

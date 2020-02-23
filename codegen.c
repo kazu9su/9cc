@@ -1,6 +1,7 @@
 #include "9cc.h"
 
 static int labelseq = 1;
+static char *funcname;
 static char *argreg[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 
 void gen_lval(Node *node) {
@@ -47,7 +48,7 @@ void gen(Node *node) {
         case ND_RETURN:
             gen(node->lhs);
             printf("  pop rax\n");
-            printf("  jmp .L.return\n");
+            printf("  jmp .L.return.%s\n", funcname);
             return;
         case ND_BLOCK:
             for (Node *n = node->body; n; n = n->next) {
@@ -199,22 +200,27 @@ void gen(Node *node) {
 void codegen(Function *prog) {
     // アセンブリの前半部分を出力
     printf(".intel_syntax noprefix\n");
-    printf(".global main\n");
-    printf("main:\n");
 
-    // プロローグ
-    printf("  push rbp\n");
-    printf("  mov rbp, rsp\n");
-    printf("  sub rsp, %d\n", prog->stack_size);
+    for (Function *fn = prog; fn; fn = fn->next) {
+        printf(".global %s\n", fn->name);
+        printf("%s:\n", fn->name);
 
-    // 先頭の式から順にコード生成
-    for (Node *node = prog->node; node; node = node->next)
-        gen(node);
+        funcname = fn->name;
 
-    // エピローグ
-    // 最後の式の結果がRAXに残っているのでそれが返り値になる
-    printf(".L.return:\n");
-    printf("  mov rsp, rbp\n");
-    printf("  pop rbp\n");
-    printf("  ret\n");
+        // プロローグ
+        printf("  push rbp\n");
+        printf("  mov rbp, rsp\n");
+        printf("  sub rsp, %d\n", fn->stack_size);
+
+        // 先頭の式から順にコード生成
+        for (Node *node = fn->node; node; node = node->next)
+            gen(node);
+
+        // エピローグ
+        // 最後の式の結果がRAXに残っているのでそれが返り値になる
+        printf(".L.return.%s:\n", funcname);
+        printf("  mov rsp, rbp\n");
+        printf("  pop rbp\n");
+        printf("  ret\n");
+    }
 }
