@@ -5,10 +5,15 @@ static char *funcname;
 static char *argreg[] = { "rdi", "rsi", "rdx", "rcx", "r8", "r9" };
 
 void gen_lval(Node *node) {
-    if (node->kind == ND_LVAR) {
-        printf("  lea rax, [rbp-%d]\n", node->lvar->offset);
-        printf("  push rax\n");
-        return;
+    switch (node->kind) {
+        case ND_LVAR:
+            printf("  lea rax, [rbp-%d]\n", node->lvar->offset);
+            printf("  push rax\n");
+            return;
+        case ND_DEREF:
+            gen(node->lhs);
+
+            return;
     }
 
     error("代入の左辺値が変数ではありません");
@@ -44,6 +49,14 @@ void gen(Node *node) {
             gen_lval(node->lhs);
             gen(node->rhs);
             store();
+            return;
+        case ND_ADDR:
+            gen_lval(node->lhs);
+            return;
+        case ND_DEREF:
+            gen(node->lhs);
+            load();
+
             return;
         case ND_RETURN:
             gen(node->lhs);

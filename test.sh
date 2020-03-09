@@ -73,5 +73,13 @@ try 8 'main() { return add(3, 5); }'
 try 2 'main() { return sub(5, 3); }'
 try 21 'main() { return add6(1,2,3,4,5,6); }'
 try 3 'ret3() { return 3; } main() { return ret3(); }'
+try 3 'ret3() { x = 3; y = &x; return *y; } main() { return ret3(); }'
+try 3 'main() { x=3; return *&x; }'
+try 3 'main() { x=3; y=&x; z=&y; return **z; }'
+try 5 'main() { x=3; y=5; return *(&x+8); }'
+try 3 'main() { x=3; y=5; return *(&y-8); }'
+try 5 'main() { x=3; y=&x; *y=5; return x; }'
+try 7 'main() { x=3; y=5; *(&x+8)=7; return y; }'
+try 7 'main() { x=3; y=5; *(&y-8)=7; return x; }'
 
 echo OK
