@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Type Type;
+
 typedef enum {
     ND_ADD, // +
     ND_SUB, // -
@@ -43,6 +45,7 @@ typedef struct Node Node;
 struct Node {
     NodeKind kind;
     Node *next;
+    Type *ty;
     Node *lhs; // 左辺
     Node *rhs; // 右辺
 
@@ -124,3 +127,13 @@ struct Function {
 Function *program(void);
 
 void codegen(Function *prog);
+
+typedef enum { TY_INT, TY_PTR } TypeKind;
+
+struct Type {
+    TypeKind kind;
+    Type * base;
+};
+
+bool is_integer(Type *ty);
+void add_type(Node *node);

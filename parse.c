@@ -233,6 +233,8 @@ Node *stmt() {
     Node *node = new_unary(ND_EXPR_STMT, expr());
     expect(";");
 
+    add_type(node);
+
     return node;
 }
 
@@ -363,3 +365,5 @@ Node *primary() {
 
     return new_node_num(expect_number());
 }
+
+
