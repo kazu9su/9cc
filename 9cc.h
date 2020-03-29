@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct Type Type;
+
 typedef enum {
     ND_ADD, // +
     ND_SUB, // -
@@ -36,32 +38,7 @@ struct LVar {
     LVar *next; // 次の変数かNULL
     char *name; // 変数の名前
     int offset; // RBPからのオフセット
-};
-
-typedef struct Node Node;
-
-struct Node {
-    NodeKind kind;
-    Node *next;
-    Node *lhs; // 左辺
-    Node *rhs; // 右辺
-
-    // if or while or for statement
-    Node *cond;
-    Node *then;
-    Node *els;
-    Node *init;
-    Node *inc;
-
-    // Block
-    Node *body;
-
-    // Function call
-    char *funcname;
-    Node *args;
-
-    LVar *lvar;
-    int val; // kindがND_NUMの場合のみ使う
+    Type *ty;
 };
 
 // トークンの種類
@@ -83,10 +60,39 @@ struct Token {
     int len;
 };
 
+typedef struct Node Node;
+
+struct Node {
+    NodeKind kind;
+    Node *next;
+    Type *ty;
+    Node *lhs; // 左辺
+    Node *rhs; // 右辺
+
+    // if or while or for statement
+    Node *cond;
+    Node *then;
+    Node *els;
+    Node *init;
+    Node *inc;
+
+    Token *tok; // Representative Token
+
+    // Block
+    Node *body;
+
+    // Function call
+    char *funcname;
+    Node *args;
+
+    LVar *lvar;
+    int val; // kindがND_NUMの場合のみ使う
+};
+
 void error(char *fmt, ...);
 char *user_input;
 void error_at(char *loc, char *fmt, ...);
-bool consume(char *op);
+Token *consume(char *op);
 Token *consume_ident(void);
 void expect(char *op);
 int expect_number();
@@ -124,3 +130,13 @@ struct Function {
 Function *program(void);
 
 void codegen(Function *prog);
+
+typedef enum { TY_INT, TY_PTR } TypeKind;
+
+struct Type {
+    TypeKind kind;
+    Type * base;
+};
+
+bool is_integer(Type *ty);
+void add_type(Node *node);

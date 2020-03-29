@@ -52,7 +52,6 @@ Token *tokenize(char *p) {
         error("トークナイズできません");
     }
 
-    new_token(TK_EOF, cur, p, 0);
     return head.next;
 }
 
@@ -87,13 +86,35 @@ void error(char *fmt, ...) {
     exit(1);
 }
 
+void verror_at(char *loc, char *fmt, va_list ap) {
+    int pos = loc - user_input;
+    fprintf(stderr, "%s\n", user_input);
+    fprintf(stderr, "%*s", pos, "");
+    fprintf(stderr, "^ ");
+    fprintf(stderr, fmt, ap);
+    fprintf(stderr, "\n");
+    exit(1);
+}
+
+void error_at(char *loc, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(loc, fmt, ap);
+}
+
+void error_tok(Token *tok, char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+    verror_at(tok->str, fmt, ap);
+}
+
 bool startswith(char *p, char *q) {
     return memcmp(p, q, strlen(q)) == 0;
 }
 
 char *starts_with_reserved(char *p) {
     // Keyword
-    char *kw[] = { "return", "if", "else", "while", "for" };
+    char *kw[] = { "return", "if", "else", "while", "for", "int" };
 
     for (int i = 0; i < sizeof(kw) / sizeof(*kw); i++) {
         int len = strlen(kw[i]);
@@ -111,6 +132,22 @@ char *starts_with_reserved(char *p) {
     return NULL;
 }
 
+// Returns token if the current token matches a given string
+Token *peek(char *s) {
+    if (token->kind != TK_RESERVED || strlen(s) != token->len || strncmp(token->str, s, token->len))
+        return NULL;
+
+    return token;
+}
+
+// Ensure current token is a given string
+void expect(char *s) {
+    if (!peek(s))
+        error_tok(token, "expected \"%s\"", s);
+
+    token = token->next;
+}
+
 // Ensure that the current token is TK_IDENT
 char *expect_ident() {
     if (token->kind != TK_IDENT)
@@ -119,3 +156,25 @@ char *expect_ident() {
     token = token->next;
     return s;
 }
+
+// 次のトークンが期待している記号のときにはトークンを1つ読み進めて
+// 真を返す。それ以外のときには偽を返す
+Token *consume(char *op) {
+    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
+        return NULL;
+
+    Token *t = token;
+    token = token->next;
+
+    return t;
+}
+
+Token *consume_ident(void) {
+    if (token->kind != TK_IDENT)
+        return NULL;
+
+    Token *t = token;
+    token = token->next;
+    return t;
+}
+

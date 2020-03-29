@@ -14,37 +14,6 @@ LVar *find_lvar(Token *tok) {
 // 現在着目しているToken
 Token *token;
 
-void error_at(char *loc, char *fmt, ...) {
-    va_list ap;
-    va_start(ap, fmt);
-
-    int pos = loc - user_input;
-    fprintf(stderr, "%s\n", user_input);
-    fprintf(stderr, "%*s", pos, ""); // pos個の空白を出力
-    fprintf(stderr, "^ ");
-    vfprintf(stderr, fmt, ap);
-    fprintf(stderr, "\n");
-    exit(1);
-}
-
-// 次のトークンが期待している記号のときにはトークンを1つ読み進めて
-// 真を返す。それ以外のときには偽を返す
-bool consume(char *op) {
-    if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
-        return false;
-    token = token->next;
-    return true;
-}
-
-Token *consume_ident(void) {
-    if (token->kind != TK_IDENT)
-        return NULL;
-
-    Token *t = token;
-    token = token->next;
-    return t;
-}
-
 void expect(char *op) {
     if (token->kind != TK_RESERVED || strlen(op) != token->len || memcmp(token->str, op, token->len))
         error_at(token->str, "'%s'ではありません", op);
@@ -63,44 +32,46 @@ bool at_eof() {
     return token->kind == TK_EOF;
 }
 
-Node *new_node(NodeKind kind) {
+Node *new_node(NodeKind kind, Token *tok) {
     Node *node = calloc(1, sizeof(Node));
     node->kind = kind;
+    node->tok = tok;
 
     return node;
 }
 
-Node *new_unary(NodeKind kind, Node *expr) {
-    Node *node = new_node(kind);
+Node *new_unary(NodeKind kind, Node *expr, Token *tok) {
+    Node *node = new_node(kind, tok);
     node->lhs = expr;
 
     return node;
 }
 
-Node *new_binary(NodeKind kind, Node *lhs, Node *rhs) {
-    Node *node = new_node(kind);
+Node *new_binary(NodeKind kind, Node *lhs, Node *rhs, Token *tok) {
+    Node *node = new_node(kind, tok);
     node->lhs = lhs;
     node->rhs = rhs;
 
     return node;
 }
 
-Node *new_node_num(int val) {
-    Node *node = new_node(ND_NUM);
+Node *new_node_num(int val, Token *tok) {
+    Node *node = new_node(ND_NUM, tok);
     node->val = val;
     return node;
 }
 
-Node *new_lvar_node(LVar *lvar) {
-    Node *node = new_node(ND_LVAR);
+Node *new_lvar_node(LVar *lvar, Token *tok) {
+    Node *node = new_node(ND_LVAR, tok);
     node->lvar = lvar;
     return node;
 }
 
-LVar *new_lvar(char *name) {
+LVar *new_lvar(char *name, Type *ty) {
     LVar *lvar = calloc(1, sizeof(LVar));
     lvar->next = locals;
     lvar->name = name;
+    lvar->ty = ty;
     locals = lvar;
 
     return lvar;
@@ -115,6 +86,7 @@ Node *add(void);
 Node *mul(void);
 Node *unary(void);
 Node *primary(void);
+Node *declaration(void);
 Function *function(void);
 
 // program = function*
@@ -130,14 +102,20 @@ Function *program() {
     return head.next;
 }
 
+// function = basetype ident "(" params? ")" "{" stmt* "}"
+// params = param ("," param)?
+// param = basetype ident
 Function *function() {
     locals = NULL;
 
+    basetype();
     char *name = expect_ident();
+    fn->name = name;
     expect("(");
     expect(")");
     expect("{");
 
+    Function *fn = calloc(1, sizeof(Function));
     Node head = {};
     Node *cur = &head;
 
@@ -146,29 +124,45 @@ Function *function() {
         cur = cur->next;
     }
 
-    Function *fn = calloc(1, sizeof(Function));
-    fn->name = name;
     fn->node = head.next;
     fn->locals = locals;
 
     return fn;
 }
 
+// declaration = basetype ident ("=" expr ) ";"
+Node *declaration(void) {
+    Token *tok = token;
+    Type *ty = basetype();
+    Lvar var = new_lvar(expect_ident(), ty);
+
+    if (consume(";"))
+        return new_node(ND_NULL, tok);
+
+    expect("=");
+    Node *lhs = new_lvar_node(var, tok);
+    Node *rhs = expr();
+    Node *node = new_binary(ND_ASSIGN, lhs, rhs, tok);
+
+    return new_unary(ND_EXPR_STMT, node, tok);
+}
+
 // stmt = "return" expr ";"
 //      | "{" stmt* "}"
+//      | declaration
 //      | "if" "(" expr ")" stmt ("else" stmt)?
 //      | "while" "(" expr ")" stmt
 //      | "for" "(" expr? ";" expr? ";" expr? ";" ")" stmt
 //      | expr ";"
 Node *stmt() {
-    if (consume("return")) {
-        Node *node = new_unary(ND_RETURN, expr());
+    if (tok = consume("return")) {
+        Node *node = new_unary(ND_RETURN, expr(), tok);
         expect(";");
 
         return node;
     }
 
-    if (consume("{")) {
+    if (tok = consume("{")) {
         Node head = {};
         Node *cur = &head;
 
@@ -177,14 +171,14 @@ Node *stmt() {
             cur = cur->next;
         }
 
-        Node *node = new_node(ND_BLOCK);
+        Node *node = new_node(ND_BLOCK, tok);
         node->body = head.next;
 
         return node;
     }
 
-    if (consume("if")) {
-        Node *node = new_node(ND_IF);
+    if (tok = consume("if")) {
+        Node *node = new_node(ND_IF, tok);
         expect("(");
         node->cond = expr();
         expect(")");
@@ -196,8 +190,8 @@ Node *stmt() {
         return node;
     }
 
-    if (consume("while")) {
-        Node *node = new_node(ND_WHILE);
+    if (tok = consume("while")) {
+        Node *node = new_node(ND_WHILE, tok);
         expect("(");
         node->cond = expr();
         expect(")");
@@ -206,8 +200,8 @@ Node *stmt() {
         return node;
     }
 
-    if (consume("for")) {
-        Node *node = new_node(ND_FOR);
+    if (tok = consume("for")) {
+        Node *node = new_node(ND_FOR, tok);
         expect("(");
 
         if (!consume(";")) {
@@ -230,8 +224,13 @@ Node *stmt() {
         return node;
     }
 
+    if (tok = peek("int"))
+        return declaration();
+
     Node *node = new_unary(ND_EXPR_STMT, expr());
     expect(";");
+
+    add_type(node);
 
     return node;
 }
@@ -316,6 +315,23 @@ Node *unary() {
     return primary();
 }
 
+Type *basetype(void) {
+    expect("int");
+    Type *ty = int_type;
+    while (consume("*"))
+        ty = pointer_to(ty);
+
+    return ty;
+}
+
+Node *read_func_param(void) {
+    Node *node = calloc(1, Node);
+    Type *ty = basetype();
+    node->lvar = new_lvar(expect_ident(), ty);
+    
+    return node;
+}
+
 // func_args = "(" (assign ("," assign)*)? ")"
 Node *func_args() {
     if (consume(")"))
@@ -356,10 +372,12 @@ Node *primary() {
         // Variable
         LVar *lvar = find_lvar(tok);
         if (!lvar)
-            lvar = new_lvar(strndup(tok->str, tok->len));
+            error_tok(tok, "undefined variable");
 
-        return new_lvar_node(lvar);
+        return new_lvar_node(lvar, tok);
     }
 
-    return new_node_num(expect_number());
+    return new_node_num(expect_number(), tok);
 }
+
+
